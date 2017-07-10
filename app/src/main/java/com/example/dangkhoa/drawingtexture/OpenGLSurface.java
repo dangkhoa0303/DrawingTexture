@@ -1,7 +1,6 @@
 package com.example.dangkhoa.drawingtexture;
 
 import android.content.Context;
-import android.graphics.PixelFormat;
 import android.opengl.GLSurfaceView;
 
 /**
@@ -17,10 +16,12 @@ public class OpenGLSurface extends GLSurfaceView {
 
         setEGLContextClientVersion(2);
 
-        //mRenderer = new GLRenderer(context);
-        //setRenderer(mRenderer);
+        mRenderer = new GLRenderer(context);
+        setRenderer(mRenderer);
+        setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+    }
 
-        //setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
-
+    public GLRenderer getRenderer() {
+        return mRenderer;
     }
 }
