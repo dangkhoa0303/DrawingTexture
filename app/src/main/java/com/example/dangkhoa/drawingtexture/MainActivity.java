@@ -27,7 +27,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceTexture.On
         surfaceTexture = new SurfaceTexture(texture);
         surfaceTexture.setOnFrameAvailableListener(this);
         renderer.setSurface(surfaceTexture);
-        mCamera = Camera.open();
+        mCamera = Camera.open(0);
 
         try {
             mCamera.setPreviewTexture(surfaceTexture);

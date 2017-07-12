@@ -77,11 +77,6 @@ public class GLRenderer implements GLSurfaceView.Renderer {
         GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
         GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
 
-        int[] fbo = new int[1];
-        GLES20.glGenFramebuffers(1, fbo, 0);
-        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo[0]);
-        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texture[0], 0);
-
         return texture[0];
     }
 
