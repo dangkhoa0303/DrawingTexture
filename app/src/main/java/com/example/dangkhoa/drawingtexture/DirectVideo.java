@@ -3,18 +3,13 @@ package com.example.dangkhoa.drawingtexture;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
-
-import com.example.dangkhoa.drawingtexture.riGraphicTools;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
-
-import static com.example.dangkhoa.drawingtexture.riGraphicTools.loadShader;
 
 /**
  * Created by chau on 04.03.15.
@@ -59,15 +54,15 @@ public class DirectVideo {
     private FloatBuffer vertexBuffer, textureVerticesBuffer;
     private ShortBuffer drawListBuffer;
 
+    // variables used for camera preview texture
     private final int mProgram;
     private int mPositionHandle;
     private int mCameraTextureHandle;
-    private int mImageTextureHandle;
     private int mTextureCoordHandle;
 
     private FloatBuffer imageTextureVerticesBuffer;
     private int mImgTextureCoordHandle;
-
+    private int mImageTextureHandle;
 
     // number of coordinates per vertex in this array
     static final int COORDS_PER_VERTEX = 2;
@@ -233,5 +228,6 @@ public class DirectVideo {
         GLES20.glDisableVertexAttribArray(mPositionHandle);
         GLES20.glDisableVertexAttribArray(mTextureCoordHandle);
         GLES20.glDisableVertexAttribArray(mImgTextureCoordHandle);
+
     }
 }
