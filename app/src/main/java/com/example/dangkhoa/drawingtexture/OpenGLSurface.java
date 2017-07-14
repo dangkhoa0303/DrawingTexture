@@ -19,6 +19,7 @@ public class OpenGLSurface extends GLSurfaceView {
         mRenderer = new GLRenderer(context);
         setRenderer(mRenderer);
         setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+        setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
     }
 
     public GLRenderer getRenderer() {

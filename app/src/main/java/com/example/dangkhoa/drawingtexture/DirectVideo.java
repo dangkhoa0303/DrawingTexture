@@ -9,7 +9,6 @@ import android.opengl.GLUtils;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
-import java.nio.ShortBuffer;
 
 /**
  * Created by chau on 04.03.15.
@@ -18,53 +17,13 @@ public class DirectVideo {
 
     private Context mContext;
 
-    private final String vertexShaderCode =
-                    "uniform mat4 uMVPMatrix;" +
-                    "attribute vec4 position;" +
-
-                    "attribute vec2 inputTextureCoordinate;" +
-                    "attribute vec2 inputImgTextureCoordinate;" +
-
-                    "varying vec2 textureCoordinate;" +
-                    "varying vec2 imgTextureCoordinate;" +
-
-                    "void main()" +
-                    "{"+
-                    "   gl_Position = uMVPMatrix * position;"+
-                    "   textureCoordinate = inputTextureCoordinate;" +
-                    "   imgTextureCoordinate = inputImgTextureCoordinate;" +
-                    "}";
-
-    private final String fragmentShaderCode =
-                    "#extension GL_OES_EGL_image_external : require\n"+
-                    "precision mediump float;" +
-
-                    "varying vec2 textureCoordinate;" +
-                    "varying vec2 imgTextureCoordinate;" +
-
-                    "uniform samplerExternalOES s_texture;" +
-                    "uniform sampler2D img_texture;" +
-
-                    "void main() {" +
-                    "   vec4 camera = texture2D(s_texture, textureCoordinate);" +
-                    "   vec4 img = texture2D(img_texture, imgTextureCoordinate);" +
-                    "   gl_FragColor = vec4(mix(camera.rgb, img.rgb, img.a*1.0), camera.a);" +
-                    //"   gl_FragColor = camera;" +
-                    "}";
-
-    private FloatBuffer vertexBuffer, textureVerticesBuffer;
-    private ShortBuffer drawListBuffer;
-
     // variables used for camera preview texture
     private final int mProgram;
-    private int mPositionHandle;
-    private int mCameraTextureHandle;
-    private int mTextureCoordHandle;
+    private FloatBuffer vertexBuffer, textureVerticesBuffer;
 
     // variables used for sticker texture
-    private FloatBuffer imageTextureVerticesBuffer;
-    private int mImgTextureCoordHandle;
-    private int mImageTextureHandle;
+    private final int sProgram;
+    private FloatBuffer stickerSquareVertexBuffer, imageTextureVerticesBuffer;
 
     // number of coordinates per vertex in this array
     static final int COORDS_PER_VERTEX = 2;
@@ -85,9 +44,10 @@ public class DirectVideo {
             0f, 0f,                                                   // bottom left
             screen_width, screen_height,                              // top right
             0f, 0f,                                                   // bottom left
-            screen_width, 0f,                                         // bottom right
+            screen_width, 0f                                          // bottom right
+    };
 
-            // vertices of sticker square
+    static float stickerSquareVertices[] = {
             sticker_top_right_x, sticker_top_right_y,                               // top right
             sticker_top_right_x-sticker_size, sticker_top_right_y,                  // top left
             sticker_top_right_x-sticker_size, sticker_top_right_y-sticker_size,     // bottom left
@@ -105,24 +65,10 @@ public class DirectVideo {
             1.0f, 0.0f,
             0.0f, 1.0f,
             1.0f, 1.0f,
-
-            0.0f, 0.0f,
-            0.0f, 0.0f,
-            0.0f, 0.0f,
-            0.0f, 0.0f,
-            0.0f, 0.0f,
-            0.0f, 0.0f
     };
 
     // texture coordinates of sticker
-    float imageTextureVertices[] = {
-
-            0.0f, 0.0f,
-            0.0f, 0.0f,
-            0.0f, 0.0f,
-            0.0f, 0.0f,
-            0.0f, 0.0f,
-            0.0f, 0.0f,
+    float stickerTextureVertices[] = {
 
             1.0f, 0.0f,
             0.0f, 0.0f,
@@ -130,7 +76,6 @@ public class DirectVideo {
             1.0f, 0.0f,
             0.0f, 1.0f,
             1.0f, 1.0f
-
     };
 
     private final int vertexStride = COORDS_PER_VERTEX * 4; // 4 bytes per vertex
@@ -141,31 +86,53 @@ public class DirectVideo {
 
         loadImageTexture();
 
+        // create square vertex buffer for camera preview
         ByteBuffer bb = ByteBuffer.allocateDirect(squareVertices.length * 4);
         bb.order(ByteOrder.nativeOrder());
         vertexBuffer = bb.asFloatBuffer();
         vertexBuffer.put(squareVertices);
         vertexBuffer.position(0);
 
+        // create texture coordinates buffer for camera preview
         ByteBuffer bb2 = ByteBuffer.allocateDirect(textureVertices.length * 4);
         bb2.order(ByteOrder.nativeOrder());
         textureVerticesBuffer = bb2.asFloatBuffer();
         textureVerticesBuffer.put(textureVertices);
         textureVerticesBuffer.position(0);
 
-        ByteBuffer bb3 = ByteBuffer.allocateDirect(imageTextureVertices.length * 4);
+        // create texture coordinates for sticker
+        ByteBuffer bb3 = ByteBuffer.allocateDirect(stickerTextureVertices.length * 4);
         bb3.order(ByteOrder.nativeOrder());
         imageTextureVerticesBuffer = bb3.asFloatBuffer();
-        imageTextureVerticesBuffer.put(imageTextureVertices);
+        imageTextureVerticesBuffer.put(stickerTextureVertices);
         imageTextureVerticesBuffer.position(0);
 
-        int vertexShader = riGraphicTools.loadShader(GLES20.GL_VERTEX_SHADER, vertexShaderCode);
-        int fragmentShader = riGraphicTools.loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode);
+        // create square vertex buffer for sticker
+        ByteBuffer bb4 = ByteBuffer.allocateDirect(stickerSquareVertices.length * 4);
+        bb4.order(ByteOrder.nativeOrder());
+        stickerSquareVertexBuffer = bb4.asFloatBuffer();
+        stickerSquareVertexBuffer.put(stickerSquareVertices);
+        stickerSquareVertexBuffer.position(0);
+
+        // Load vertex shader and fragment shader into program of camera preview
+        int vertexShader = riGraphicTools.loadShader(GLES20.GL_VERTEX_SHADER, riGraphicTools.vertexShaderCode);
+        int fragmentShader = riGraphicTools.loadShader(GLES20.GL_FRAGMENT_SHADER, riGraphicTools.fragmentShaderCode);
 
         mProgram = GLES20.glCreateProgram();             // create empty OpenGL ES Program
         GLES20.glAttachShader(mProgram, vertexShader);   // add the vertex shader to program
         GLES20.glAttachShader(mProgram, fragmentShader); // add the fragment shader to program
         GLES20.glLinkProgram(mProgram);
+        //-----------------------------------------------------------------------------------------------------
+
+        // Load vertex shader and fragment shader into program of sticker
+        int stickerVertexShader = riGraphicTools.loadShader(GLES20.GL_VERTEX_SHADER, riGraphicTools.vs_Sticker);
+        int stickerFragmentShader = riGraphicTools.loadShader(GLES20.GL_FRAGMENT_SHADER, riGraphicTools.fs_Sticker);
+
+        sProgram = GLES20.glCreateProgram();                    // create empty OpenGL ES Program
+        GLES20.glAttachShader(sProgram, stickerVertexShader);   // add the vertex shader to program
+        GLES20.glAttachShader(sProgram, stickerFragmentShader); // add the fragment shader to program
+        GLES20.glLinkProgram(sProgram);
+        //-----------------------------------------------------------------------------------------------------
     }
 
     private void loadImageTexture() {
@@ -195,35 +162,55 @@ public class DirectVideo {
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
 
-        mPositionHandle = GLES20.glGetAttribLocation(mProgram, "position");
+        int mPositionHandle = GLES20.glGetAttribLocation(mProgram, "position");
         GLES20.glEnableVertexAttribArray(mPositionHandle);
         GLES20.glVertexAttribPointer(mPositionHandle, COORDS_PER_VERTEX, GLES20.GL_FLOAT, false, vertexStride, vertexBuffer);
 
-        mTextureCoordHandle = GLES20.glGetAttribLocation(mProgram, "inputTextureCoordinate");
+        int mTextureCoordHandle = GLES20.glGetAttribLocation(mProgram, "inputTextureCoordinate");
         GLES20.glEnableVertexAttribArray(mTextureCoordHandle);
         GLES20.glVertexAttribPointer(mTextureCoordHandle, COORDS_PER_VERTEX, GLES20.GL_FLOAT, false, vertexStride, textureVerticesBuffer);
-
-        mImgTextureCoordHandle = GLES20.glGetAttribLocation(mProgram, "inputImgTextureCoordinate");
-        GLES20.glEnableVertexAttribArray(mImgTextureCoordHandle);
-        GLES20.glVertexAttribPointer(mImgTextureCoordHandle, COORDS_PER_VERTEX, GLES20.GL_FLOAT, false, vertexStride, imageTextureVerticesBuffer);
 
         // Get handle to shape's transformation matrix
         int mtrxhandle = GLES20.glGetUniformLocation(mProgram, "uMVPMatrix");
         // Apply the projection and view transformation
         GLES20.glUniformMatrix4fv(mtrxhandle, 1, false, mtrxProjectionAndView, 0);
 
-        mCameraTextureHandle = GLES20.glGetUniformLocation(mProgram, "s_texture");
+        int mCameraTextureHandle = GLES20.glGetUniformLocation(mProgram, "s_texture");
         GLES20.glUniform1i(mCameraTextureHandle, 0);
 
-        mImageTextureHandle = GLES20.glGetUniformLocation(mProgram, "img_texture");
-        GLES20.glUniform1i(mImageTextureHandle, 1);
-
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 12);
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6);
 
         // Disable vertex array
         GLES20.glDisableVertexAttribArray(mPositionHandle);
         GLES20.glDisableVertexAttribArray(mTextureCoordHandle);
-        GLES20.glDisableVertexAttribArray(mImgTextureCoordHandle);
 
+        drawSticker(mtrxProjectionAndView);
+    }
+
+    private void drawSticker(float[] mtrxProjectionAndView) {
+        GLES20.glUseProgram(sProgram);
+
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
+
+        int mPositionHandle = GLES20.glGetAttribLocation(sProgram, "position");
+        GLES20.glEnableVertexAttribArray(mPositionHandle);
+        GLES20.glVertexAttribPointer(mPositionHandle, COORDS_PER_VERTEX, GLES20.GL_FLOAT, false, vertexStride, stickerSquareVertexBuffer);
+
+        int mImgTextureCoordHandle = GLES20.glGetAttribLocation(sProgram, "inputImgTextureCoordinate");
+        GLES20.glEnableVertexAttribArray(mImgTextureCoordHandle);
+        GLES20.glVertexAttribPointer(mImgTextureCoordHandle, COORDS_PER_VERTEX, GLES20.GL_FLOAT, false, vertexStride, imageTextureVerticesBuffer);
+
+        // Get handle to shape's transformation matrix
+        int mtrxhandle = GLES20.glGetUniformLocation(sProgram, "uMVPMatrix");
+        // Apply the projection and view transformation
+        GLES20.glUniformMatrix4fv(mtrxhandle, 1, false, mtrxProjectionAndView, 0);
+
+        int mImageTextureHandle = GLES20.glGetUniformLocation(sProgram, "img_texture");
+        GLES20.glUniform1i(mImageTextureHandle, 1);
+
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6);
+
+        GLES20.glDisableVertexAttribArray(mPositionHandle);
+        GLES20.glDisableVertexAttribArray(mImgTextureCoordHandle);
     }
 }
