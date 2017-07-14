@@ -5,6 +5,7 @@ import android.graphics.SurfaceTexture;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
+import android.opengl.Matrix;
 
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
@@ -24,6 +25,10 @@ public class GLRenderer implements GLSurfaceView.Renderer {
     private final float[] mtrxView = new float[16];
     private final float[] mtrxProjectionAndView = new float[16];
 
+    // Our screenresolution
+    float mScreenWidth = 1280;
+    float mScreenHeight = 768;
+
     private SurfaceTexture surfaceTexture;
     private MainActivity delegate;
     private DirectVideo mDirectVideo;
@@ -38,7 +43,7 @@ public class GLRenderer implements GLSurfaceView.Renderer {
 
     @Override
     public void onSurfaceCreated(GL10 gl10, EGLConfig eglConfig) {
-        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1f);
+        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
         texture = initCameraTexture();
         mDirectVideo = new DirectVideo(mContext);
@@ -49,7 +54,30 @@ public class GLRenderer implements GLSurfaceView.Renderer {
 
     @Override
     public void onSurfaceChanged(GL10 gl10, int width, int height) {
-        GLES20.glViewport(0, 0, width, height);
+
+        // We need to know the current width and height.
+        mScreenWidth = width;
+        mScreenHeight = height;
+
+        // Redo the Viewport, making it fullscreen.
+        GLES20.glViewport(0, 0, (int)mScreenWidth, (int)mScreenHeight);
+
+        // Clear our matrices
+        for(int i=0;i<16;i++)
+        {
+            mtrxProjection[i] = 0.0f;
+            mtrxView[i] = 0.0f;
+            mtrxProjectionAndView[i] = 0.0f;
+        }
+
+        // Setup our screen width and height for normal sprite translation.
+        Matrix.orthoM(mtrxProjection, 0, 0f, mScreenWidth, 0.0f, mScreenHeight, 0, 50);
+
+        // Set the camera position (View matrix)
+        Matrix.setLookAtM(mtrxView, 0, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1.0f, 0.0f);
+
+        // Calculate the projection and view transformation
+        Matrix.multiplyMM(mtrxProjectionAndView, 0, mtrxProjection, 0, mtrxView, 0);
     }
 
     @Override
@@ -61,7 +89,7 @@ public class GLRenderer implements GLSurfaceView.Renderer {
         surfaceTexture.getTransformMatrix(mtx);
 
         // start drawing
-        mDirectVideo.draw();
+        mDirectVideo.draw(mtrxProjectionAndView);
     }
 
     // initialise camera texture id
@@ -72,10 +100,10 @@ public class GLRenderer implements GLSurfaceView.Renderer {
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texture[0]);
 
-        GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
-        GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST);
-        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_LINEAR);
+        GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR);
+        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GL10.GL_TEXTURE_WRAP_S, GL10.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GL10.GL_TEXTURE_WRAP_T, GL10.GL_CLAMP_TO_EDGE);
 
         return texture[0];
     }
