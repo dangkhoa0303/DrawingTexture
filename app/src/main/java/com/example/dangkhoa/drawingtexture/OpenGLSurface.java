@@ -2,6 +2,7 @@ package com.example.dangkhoa.drawingtexture;
 
 import android.content.Context;
 import android.opengl.GLSurfaceView;
+import android.view.MotionEvent;
 
 /**
  * Created by dangkhoa on 03/07/2017.
@@ -20,6 +21,11 @@ public class OpenGLSurface extends GLSurfaceView {
         setRenderer(mRenderer);
         setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
         setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+    }
+
+    public boolean onTouchEvent(MotionEvent event) {
+        DirectVideo.processTouchEvent(event);
+        return true;
     }
 
     public GLRenderer getRenderer() {

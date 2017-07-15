@@ -3,8 +3,11 @@ package com.example.dangkhoa.drawingtexture;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Rect;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
+import android.util.Log;
+import android.view.MotionEvent;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -23,7 +26,7 @@ public class DirectVideo {
 
     // variables used for sticker texture
     private final int sProgram;
-    private FloatBuffer stickerSquareVertexBuffer, imageTextureVerticesBuffer;
+    private static FloatBuffer stickerSquareVertexBuffer, imageTextureVerticesBuffer;
 
     // number of coordinates per vertex in this array
     static final int COORDS_PER_VERTEX = 2;
@@ -31,52 +34,15 @@ public class DirectVideo {
     private static float screen_width = 1080;
     private static float screen_height = 1920;
 
-    private static float sticker_size = 400;
-    private static float sticker_top_right_x = 700;
-    private static float sticker_top_right_y = 800;
+    private static Sprite sprite;
 
-    // draw 2 rectangles - one rectangle for camera and one for sticker
-    static float squareVertices[] = {
-
-            // vertices of camera preview rectangle
-            screen_width, screen_height,                              // top right
-            0f, screen_height,                                        // top left
-            0f, 0f,                                                   // bottom left
-            screen_width, screen_height,                              // top right
-            0f, 0f,                                                   // bottom left
-            screen_width, 0f                                          // bottom right
-    };
-
-    static float stickerSquareVertices[] = {
-            sticker_top_right_x, sticker_top_right_y,                               // top right
-            sticker_top_right_x-sticker_size, sticker_top_right_y,                  // top left
-            sticker_top_right_x-sticker_size, sticker_top_right_y-sticker_size,     // bottom left
-            sticker_top_right_x, sticker_top_right_y,                               // top right
-            sticker_top_right_x-sticker_size, sticker_top_right_y-sticker_size,     // bottom left
-            sticker_top_right_x, sticker_top_right_y-sticker_size                   // bottom right
-    };
+    static float squareVertices[];
+    static float stickerSquareVertices[];
 
     // texture coordinates of camera preview
-    float textureVertices[] = {
-
-            1.0f, 0.0f,
-            0.0f, 0.0f,
-            0.0f, 1.0f,
-            1.0f, 0.0f,
-            0.0f, 1.0f,
-            1.0f, 1.0f,
-    };
-
+    float textureVertices[];
     // texture coordinates of sticker
-    float stickerTextureVertices[] = {
-
-            1.0f, 0.0f,
-            0.0f, 0.0f,
-            0.0f, 1.0f,
-            1.0f, 0.0f,
-            0.0f, 1.0f,
-            1.0f, 1.0f
-    };
+    float stickerTextureVertices[];
 
     private final int vertexStride = COORDS_PER_VERTEX * 4; // 4 bytes per vertex
 
@@ -84,35 +50,10 @@ public class DirectVideo {
     {
         mContext = context;
 
-        loadImageTexture();
+        sprite = new Sprite();
 
-        // create square vertex buffer for camera preview
-        ByteBuffer bb = ByteBuffer.allocateDirect(squareVertices.length * 4);
-        bb.order(ByteOrder.nativeOrder());
-        vertexBuffer = bb.asFloatBuffer();
-        vertexBuffer.put(squareVertices);
-        vertexBuffer.position(0);
-
-        // create texture coordinates buffer for camera preview
-        ByteBuffer bb2 = ByteBuffer.allocateDirect(textureVertices.length * 4);
-        bb2.order(ByteOrder.nativeOrder());
-        textureVerticesBuffer = bb2.asFloatBuffer();
-        textureVerticesBuffer.put(textureVertices);
-        textureVerticesBuffer.position(0);
-
-        // create texture coordinates for sticker
-        ByteBuffer bb3 = ByteBuffer.allocateDirect(stickerTextureVertices.length * 4);
-        bb3.order(ByteOrder.nativeOrder());
-        imageTextureVerticesBuffer = bb3.asFloatBuffer();
-        imageTextureVerticesBuffer.put(stickerTextureVertices);
-        imageTextureVerticesBuffer.position(0);
-
-        // create square vertex buffer for sticker
-        ByteBuffer bb4 = ByteBuffer.allocateDirect(stickerSquareVertices.length * 4);
-        bb4.order(ByteOrder.nativeOrder());
-        stickerSquareVertexBuffer = bb4.asFloatBuffer();
-        stickerSquareVertexBuffer.put(stickerSquareVertices);
-        stickerSquareVertexBuffer.position(0);
+        SetupSticker();
+        SetupCamera();
 
         // Load vertex shader and fragment shader into program of camera preview
         int vertexShader = riGraphicTools.loadShader(GLES20.GL_VERTEX_SHADER, riGraphicTools.vertexShaderCode);
@@ -135,7 +76,78 @@ public class DirectVideo {
         //-----------------------------------------------------------------------------------------------------
     }
 
+    private void SetupCamera() {
+
+        squareVertices = new float[] {
+
+                0f, screen_height,
+                0f, 0f,
+                screen_width, 0f,
+                0f, screen_height,
+                screen_width, 0f,
+                screen_width, screen_height
+        };
+
+        textureVertices = new float[] {
+
+                0.0f, 0.0f,     // top left
+                0.0f, 1.0f,     // bottom left
+                1.0f, 1.0f,     // bottom right
+                0.0f, 0.0f,     // top left
+                1.0f, 1.0f,     // bottom right
+                1.0f, 0.0f      // top right
+        };
+
+        // create square vertex buffer for camera preview
+        ByteBuffer bb = ByteBuffer.allocateDirect(squareVertices.length * 4);
+        bb.order(ByteOrder.nativeOrder());
+        vertexBuffer = bb.asFloatBuffer();
+        vertexBuffer.put(squareVertices);
+        vertexBuffer.position(0);
+
+        // create texture coordinates buffer for camera preview
+        ByteBuffer bb2 = ByteBuffer.allocateDirect(textureVertices.length * 4);
+        bb2.order(ByteOrder.nativeOrder());
+        textureVerticesBuffer = bb2.asFloatBuffer();
+        textureVerticesBuffer.put(textureVertices);
+        textureVerticesBuffer.position(0);
+    }
+
+    private void SetupSticker() {
+        loadImageTexture();
+
+        //sprite.setSize(bitmapWidth/2, bitmapHeight/2);
+
+        stickerSquareVertices = sprite.getTransformedVertices();
+
+        // texture coordinates of sticker
+        stickerTextureVertices = new float[] {
+
+                0.0f, 0.0f,     // top left
+                0.0f, 1.0f,     // bottom left
+                1.0f, 1.0f,     // bottom right
+                0.0f, 0.0f,     // top left
+                1.0f, 1.0f,     // bottom right
+                1.0f, 0.0f      // top right
+        };
+
+        // create texture coordinates for sticker
+        ByteBuffer bb1 = ByteBuffer.allocateDirect(stickerTextureVertices.length * 4);
+        bb1.order(ByteOrder.nativeOrder());
+        imageTextureVerticesBuffer = bb1.asFloatBuffer();
+        imageTextureVerticesBuffer.put(stickerTextureVertices);
+        imageTextureVerticesBuffer.position(0);
+
+        // create square vertex buffer for sticker
+        ByteBuffer bb2 = ByteBuffer.allocateDirect(stickerSquareVertices.length * 4);
+        bb2.order(ByteOrder.nativeOrder());
+        stickerSquareVertexBuffer = bb2.asFloatBuffer();
+        stickerSquareVertexBuffer.put(stickerSquareVertices);
+        stickerSquareVertexBuffer.position(0);
+    }
+
     private void loadImageTexture() {
+
         int[] textures = new int[1];
 
         GLES20.glGenTextures(1, textures, 0);
@@ -212,5 +224,73 @@ public class DirectVideo {
 
         GLES20.glDisableVertexAttribArray(mPositionHandle);
         GLES20.glDisableVertexAttribArray(mImgTextureCoordHandle);
+    }
+
+    private static void UpdateSprite() {
+        stickerSquareVertices = sprite.getTransformedVertices();
+
+        // The vertex buffer.
+        ByteBuffer bb = ByteBuffer.allocateDirect(stickerSquareVertices.length * 4);
+        bb.order(ByteOrder.nativeOrder());
+        stickerSquareVertexBuffer = bb.asFloatBuffer();
+        stickerSquareVertexBuffer.put(stickerSquareVertices);
+        stickerSquareVertexBuffer.position(0);
+    }
+
+    // keep track of the last touch position
+    static float mLastTouchX = 0, mLastTouchY = 0;
+    // check whether the sticker can be moved or not
+    static boolean moveAble = false;
+
+    public static void processTouchEvent(MotionEvent event)
+    {
+        final int action = event.getActionMasked();
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN: {
+                float x = event.getRawX();
+                float y = event.getRawY();
+
+                // because the coordinates received from touch event are relative to the top left corner
+                // while opengl view is drawn relatively to the bottom left corner
+                // so, int order to pick up y coordinate correctly, we need to translate the motionevent y-axis into opengl y-axis
+                float glY = screen_height - y;
+
+                Rect sticker = sprite.getStickerCoordinates();
+
+                // check if the touch coordinates locate inside the sticker
+                if (x <= sticker.right && x >= sticker.left && glY <= sticker.top && glY >= sticker.bottom) {
+                    // if true, the sticker can be moved
+                    moveAble = true;
+                    mLastTouchX = x;
+                    mLastTouchY = glY;
+                }
+                break;
+            }
+            case MotionEvent.ACTION_MOVE: {
+                if (moveAble) {
+                    float x = event.getRawX();
+                    float y = event.getRawY();
+
+                    float glY = screen_height - y;
+
+                    float dx = x - mLastTouchX;
+                    float dy = glY - mLastTouchY;
+
+                    sprite.translate(dx, dy);
+                    // update new coordinates
+                    UpdateSprite();
+
+                    mLastTouchX = x;
+                    mLastTouchY = glY;
+                } else {
+                    Log.d("CAMERA", "false");
+                }
+                break;
+            }
+            case MotionEvent.ACTION_UP: {
+                moveAble = false;
+            }
+        }
     }
 }
