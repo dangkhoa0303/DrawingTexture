@@ -1,81 +1,160 @@
 package com.example.dangkhoa.drawingtexture;
 
-import android.content.Context;
+import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Point;
+import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
+import android.opengl.Matrix;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.Display;
-import android.view.Surface;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.RelativeLayout;
 
 import java.io.IOException;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements SurfaceTexture.OnFrameAvailableListener {
-
-    private static final boolean DEBUG = false;
-    private static final String TAG = "CAMERA";
+public class MainActivity extends AppCompatActivity implements SurfaceTexture.OnFrameAvailableListener, View.OnTouchListener {
 
     private OpenGLSurface openGLSurface;
     private Camera mCamera;
     private SurfaceTexture surfaceTexture;
     private GLRenderer renderer;
 
+    private float[] mOrientationM = new float[16];
+    private float[] mRatio = new float[2];
+
+    private RelativeLayout root;
+    private RelativeLayout openglLayout;
+    private Button showHideButton;
+    private ImageView sticker;
+
+    private RectF stickerCoords;
+
+    private Point size;
+
+    private int screen_width, screen_height;
+
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
+        setContentView(R.layout.activity_main);
+
+        size = new Point();
+        getWindowManager().getDefaultDisplay().getSize(size);
+        screen_width = size.x;
+        screen_height = size.y;
+        Log.d("MAIN", "SIZE " + screen_width + " " + screen_height);
 
         openGLSurface = new OpenGLSurface(this);
         renderer = openGLSurface.getRenderer();
-        setContentView(openGLSurface);
+
+        openglLayout = (RelativeLayout) findViewById(R.id.opengl_layout);
+        openglLayout.addView(openGLSurface, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        sticker = (ImageView) findViewById(R.id.sticker);
+        Bitmap bmp = BitmapFactory.decodeResource(this.getResources(), R.drawable.mario);
+        sticker.setImageBitmap(bmp);
+        // use this to obtain coordinates of the sticker imageview
+        sticker.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                float left = sticker.getX();
+                float right = left + sticker.getWidth();
+
+                float top = sticker.getY() + 168;
+                float topGL = screen_height - top;
+
+                float bottomGL = topGL - sticker.getHeight();
+
+                stickerCoords = new RectF(left, topGL, right, bottomGL);
+
+                renderer.setStickerCoordinates(stickerCoords);
+
+                renderer.setStickerImageView(sticker);
+
+                Log.d("MAIN", "" + left + " " + top + " " + right + " " + bottomGL);
+                sticker.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+            }
+        });
+
+        root = (RelativeLayout) findViewById(R.id.relative_layout);
+        root.setOnTouchListener(this);
+
+        //Log.d("BASE", "" + stickerCoords.left);
+
+        showHideButton = (Button) findViewById(R.id.show_hide_button);
+        showHideButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                sticker.setVisibility(View.INVISIBLE);
+                //DirectVideo.showHideImageView();
+            }
+        });
     }
 
-    public void startCamera(int texture) {
+
+    public void startCamera(int texture, int width, int height) {
         surfaceTexture = new SurfaceTexture(texture);
         surfaceTexture.setOnFrameAvailableListener(this);
         renderer.setSurface(surfaceTexture);
 
+        int camera_width =0;
+        int camera_height =0;
+
         mCamera = Camera.open(0);
-
-        final Camera.Parameters params = mCamera.getParameters();
-
-        final List<String> focusModes = params.getSupportedFocusModes();
-
-        if (focusModes.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO)) {
-            params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
-        } else if(focusModes.contains(Camera.Parameters.FOCUS_MODE_AUTO)) {
-            params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
-        } else {
-            if (DEBUG) Log.i(TAG, "Camera does not support autofocus");
-        }
-
-        final Display display = ((WindowManager)this.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
-        final int rotation = display.getRotation();
-        int degrees = 0;
-        switch (rotation) {
-            case Surface.ROTATION_0: degrees = 0; break;
-            case Surface.ROTATION_90: degrees = 90; break;
-            case Surface.ROTATION_180: degrees = 180; break;
-            case Surface.ROTATION_270: degrees = 270; break;
-        }
-        // get whether the camera is front camera or back camera
-        final Camera.CameraInfo info = new android.hardware.Camera.CameraInfo();
-
-        android.hardware.Camera.getCameraInfo(0, info);
-
-        degrees = (info.orientation - degrees + 360) % 360;
-
-        // apply rotation setting
-        mCamera.setDisplayOrientation(degrees);
 
         try {
             mCamera.setPreviewTexture(surfaceTexture);
-            mCamera.startPreview();
         } catch (IOException e) {
             e.printStackTrace();
         }
+        Camera.Parameters param = mCamera.getParameters();
+        List<Camera.Size> psize = param.getSupportedPreviewSizes();
+        if(psize.size() > 0 ){
+            int i;
+            for (i = 0; i < psize.size(); i++){
+                if(psize.get(i).width < width || psize.get(i).height < height)
+                    break;
+            }
+            if(i>0)
+                i--;
+            param.setPreviewSize(psize.get(i).width, psize.get(i).height);
+
+            camera_width = psize.get(i).width;
+            camera_height= psize.get(i).height;
+        }
+
+        //get the camera orientation and display dimension------------
+        if(this.getResources().getConfiguration().orientation ==
+                Configuration.ORIENTATION_PORTRAIT){
+            Matrix.setRotateM(mOrientationM, 0, 90.0f, 0f, 0f, 1f);
+            mRatio[1] = camera_width*1.0f/height;
+            mRatio[0] = camera_height*1.0f/width;
+        }
+        else{
+            Matrix.setRotateM(mOrientationM, 0, 0.0f, 0f, 0f, 1f);
+            mRatio[1] = camera_height*1.0f/height;
+            mRatio[0] = camera_width*1.0f/width;
+        }
+
+        mCamera.setParameters(param);
+        mCamera.startPreview();
     }
 
     @Override
@@ -86,8 +165,16 @@ public class MainActivity extends AppCompatActivity implements SurfaceTexture.On
     @Override
     protected void onPause() {
         super.onPause();
-        mCamera.stopPreview();
-        mCamera.release();
-        System.exit(0);
+        if (mCamera != null) {
+            mCamera.stopPreview();
+            mCamera.release();
+            System.exit(0);
+        }
+    }
+
+    @Override
+    public boolean onTouch(View view, MotionEvent motionEvent) {
+        DirectVideo.processTouchEvent(motionEvent);
+        return true;
     }
 }

@@ -23,12 +23,13 @@ public class OpenGLSurface extends GLSurfaceView {
         setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
     }
 
-    public boolean onTouchEvent(MotionEvent event) {
-        DirectVideo.processTouchEvent(event);
-        return true;
-    }
-
     public GLRenderer getRenderer() {
         return mRenderer;
     }
+
+    /*@Override
+    public boolean onTouchEvent(MotionEvent event) {
+        DirectVideo.processTouchEvent(event);
+        return true;
+    }*/
 }

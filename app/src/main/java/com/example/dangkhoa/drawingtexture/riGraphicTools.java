@@ -50,7 +50,7 @@ public class riGraphicTools {
                     "}";
 
     public static final String fs_Sticker =
-            "precision mediump float;" +
+                    "precision mediump float;" +
 
                     "varying vec2 imgTextureCoordinate;" +
 

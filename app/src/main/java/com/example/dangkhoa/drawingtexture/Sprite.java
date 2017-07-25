@@ -2,6 +2,7 @@ package com.example.dangkhoa.drawingtexture;
 
 import android.graphics.PointF;
 import android.graphics.Rect;
+import android.graphics.RectF;
 
 /**
  * Created by dangkhoa on 14/07/2017.
@@ -12,8 +13,10 @@ import android.graphics.Rect;
 public class Sprite {
     float angle;
     float scale;
-    Rect base;
+    private static RectF base;
     PointF translation;
+
+    PointF rotationPoint;
 
     public static float top = 800;
     public static float bottom = 400;
@@ -23,10 +26,12 @@ public class Sprite {
     public Sprite()
     {
         // Initialise our intital size around the 0,0 point
-        base = new Rect((int)left, (int)top, (int)right, (int)bottom);
+        base = new RectF(left, top, right, bottom);
 
         // Initial translation
         translation = new PointF(0f, 0f);
+
+        rotationPoint = new PointF((base.left+base.right)/2, (base.top+base.bottom)/2);
 
         // We start with our inital size
         scale = 1f;
@@ -45,12 +50,13 @@ public class Sprite {
 
     public void scale(float deltas)
     {
-        scale += deltas;
+        scale = deltas;
     }
 
-    public void rotate(float deltaa)
+    public void rotate(float deltaa, PointF midpoint)
     {
-        angle += deltaa;
+        angle = deltaa;
+        //rotationPoint = midpoint;
     }
 
     public float[] getTransformedVertices()
@@ -63,10 +69,10 @@ public class Sprite {
 
         // We now detach from our Rect because when rotating,
         // we need the seperate points, so we do so in opengl order
-        PointF one = new PointF(x1, y2);
-        PointF two = new PointF(x1, y1);
-        PointF three = new PointF(x2, y1);
-        PointF four = new PointF(x2, y2);
+        PointF one = new PointF(x1, y2);            // top left
+        PointF two = new PointF(x1, y1);            // bottom left
+        PointF three = new PointF(x2, y1);          // bottom right
+        PointF four = new PointF(x2, y2);           // top right
 
         // We create the sin and cos function once,
         // so we do not have calculate them each time.
@@ -74,14 +80,23 @@ public class Sprite {
         float c = (float) Math.cos(angle);
 
         // Then we rotate each point
-        one.x = x1 * c - y2 * s;
-        one.y = x1 * s + y2 * c;
-        two.x = x1 * c - y1 * s;
-        two.y = x1 * s + y1 * c;
-        three.x = x2 * c - y1 * s;
-        three.y = x2 * s + y1 * c;
-        four.x = x2 * c - y2 * s;
-        four.y = x2 * s + y2 * c;
+        one.x = (x1) * c - (y2) * s;
+        one.y = (x1) * s + (y2) * c;
+        two.x = (x1) * c - (y1) * s;
+        two.y = (x1) * s + (y1) * c;
+        three.x = (x2) * c - (y1) * s;
+        three.y = (x2) * s + (y1) * c;
+        four.x = (x2) * c - (y2) * s;
+        four.y = (x2) * s + (y2) * c;
+
+        /*one.x = (x1-rotationPoint.x) * c - (y2-rotationPoint.y) * s + rotationPoint.x;
+        one.y = (x1-rotationPoint.x) * s + (y2-rotationPoint.y) * c + rotationPoint.y;
+        two.x = (x1-rotationPoint.x) * c - (y1-rotationPoint.y) * s + rotationPoint.x;
+        two.y = (x1-rotationPoint.x) * s + (y1-rotationPoint.y) * c + rotationPoint.y;
+        three.x = (x2-rotationPoint.x) * c - (y1-rotationPoint.y) * s + rotationPoint.x;
+        three.y = (x2-rotationPoint.x) * s + (y1-rotationPoint.y) * c + rotationPoint.y;
+        four.x = (x2-rotationPoint.x) * c - (y2-rotationPoint.y) * s + rotationPoint.x;
+        four.y = (x2-rotationPoint.x) * s + (y2-rotationPoint.y) * c + rotationPoint.y;*/
 
         // Finally we translate the sprite to its correct position.
         one.x += translation.x;
@@ -107,14 +122,14 @@ public class Sprite {
                 };
     }
 
-    public void setStickerCoordinates(int left, int top, int right, int bottom) {
-        this.base.left = left;
-        this.base.top = top;
-        this.base.right = right;
-        this.base.bottom = bottom;
+    public static void setStickerCoordinates(float left, float top, float right, float bottom) {
+        base.left = left;
+        base.top = top;
+        base.right = right;
+        base.bottom = bottom;
     }
 
-    public Rect getStickerCoordinates() {
+    public RectF getStickerCoordinates() {
         return base;
     }
 }
